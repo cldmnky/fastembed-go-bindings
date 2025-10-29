@@ -30,3 +30,26 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Rust
+rust/target/
+rust/Cargo.lock
+
+# Go
+go.sum
+
+# Build artifacts
+build/
+*.a
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test data
+*.cache
+.fastembed_cache/
+.fastembed_cache/
+
+# mcp debugger
+.mcp-debug-tools
