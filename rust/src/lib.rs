@@ -3,6 +3,7 @@ use fastembed::{
     RerankInitOptions, RerankerModel, SparseInitOptions, SparseModel, SparseTextEmbedding,
     TextEmbedding, TextRerank,
 };
+use ort::execution_providers::CoreMLExecutionProvider;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::ptr;
@@ -110,7 +111,13 @@ pub extern "C" fn fastembed_text_embedding_new(
         _ => EmbeddingModel::BGESmallENV15, // default
     };
 
-    match TextEmbedding::try_new(InitOptions::new(model)) {
+    // Configure with CoreML execution provider for macOS GPU acceleration
+    let init_options = InitOptions::new(model)
+        .with_execution_providers(vec![
+            CoreMLExecutionProvider::default().build(),
+        ]);
+
+    match TextEmbedding::try_new(init_options) {
         Ok(embedding) => Box::into_raw(Box::new(TextEmbeddingHandle(Box::new(embedding)))),
         Err(e) => {
             if !error.is_null() {
@@ -245,7 +252,13 @@ pub extern "C" fn fastembed_sparse_text_embedding_new(
         }
     };
 
-    match SparseTextEmbedding::try_new(SparseInitOptions::new(model)) {
+    // Configure with CoreML execution provider for macOS GPU acceleration
+    let init_options = SparseInitOptions::new(model)
+        .with_execution_providers(vec![
+            CoreMLExecutionProvider::default().build(),
+        ]);
+
+    match SparseTextEmbedding::try_new(init_options) {
         Ok(embedding) => Box::into_raw(Box::new(SparseTextEmbeddingHandle(Box::new(embedding)))),
         Err(e) => {
             if !error.is_null() {
@@ -522,7 +535,13 @@ pub extern "C" fn fastembed_text_rerank_new(
         }
     };
 
-    match TextRerank::try_new(RerankInitOptions::new(model)) {
+    // Configure with CoreML execution provider for macOS GPU acceleration
+    let init_options = RerankInitOptions::new(model)
+        .with_execution_providers(vec![
+            CoreMLExecutionProvider::default().build(),
+        ]);
+
+    match TextRerank::try_new(init_options) {
         Ok(reranker) => Box::into_raw(Box::new(TextRerankHandle(Box::new(reranker)))),
         Err(e) => {
             if !error.is_null() {
