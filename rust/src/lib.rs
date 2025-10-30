@@ -4,13 +4,14 @@ use fastembed::{
     TextEmbedding, TextRerank,
 };
 use ort::execution_providers::{
-    CoreMLExecutionProvider,
+    CoreMLExecutionProvider, ExecutionProvider,
     coreml::{CoreMLComputeUnits, CoreMLModelFormat},
 };
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::ptr;
 use std::slice;
+use std::time::Instant;
 
 // Opaque handles for the models
 pub struct TextEmbeddingHandle(Box<TextEmbedding>);
@@ -115,17 +116,28 @@ pub extern "C" fn fastembed_text_embedding_new(
     };
 
     // Configure with CoreML execution provider for macOS GPU acceleration
+    // Enable profiling to track which operators run on GPU/ANE vs CPU
+    let coreml_config = CoreMLExecutionProvider::default()
+        .with_compute_units(CoreMLComputeUnits::All)
+        .with_model_format(CoreMLModelFormat::MLProgram)
+        .with_static_input_shapes(true)
+        .with_profile_compute_plan(true);
+    
+    // Log CoreML availability
+    match coreml_config.is_available() {
+        Ok(true) => eprintln!("[FASTEMBED-RUST] CoreML execution provider is available and will be used"),
+        Ok(false) => eprintln!("[FASTEMBED-RUST] CoreML execution provider is NOT available, falling back to CPU"),
+        Err(e) => eprintln!("[FASTEMBED-RUST] Failed to check CoreML availability: {}", e),
+    }
+    
     let init_options = InitOptions::new(model)
-        .with_execution_providers(vec![
-            CoreMLExecutionProvider::default()
-                .with_compute_units(CoreMLComputeUnits::All)
-                .with_model_format(CoreMLModelFormat::MLProgram)
-                .with_static_input_shapes(true)
-                .build(),
-        ]);
+        .with_execution_providers(vec![coreml_config.build()]);
 
     match TextEmbedding::try_new(init_options) {
-        Ok(embedding) => Box::into_raw(Box::new(TextEmbeddingHandle(Box::new(embedding)))),
+        Ok(embedding) => {
+            eprintln!("[FASTEMBED-RUST] Text embedding model initialized successfully");
+            Box::into_raw(Box::new(TextEmbeddingHandle(Box::new(embedding))))
+        },
         Err(e) => {
             if !error.is_null() {
                 unsafe {
@@ -183,7 +195,15 @@ pub extern "C" fn fastembed_text_embedding_embed(
 
     let batch_size_opt = if batch_size > 0 { Some(batch_size) } else { None };
 
-    match handle.0.embed(text_vec, batch_size_opt) {
+    // Time the embedding operation
+    let start = Instant::now();
+    let result = handle.0.embed(text_vec, batch_size_opt);
+    let duration = start.elapsed();
+    
+    eprintln!("[FASTEMBED-RUST] Text embedding: {} texts in {:.3}s ({:.2}ms/text)", 
+              num_texts, duration.as_secs_f64(), duration.as_millis() as f64 / num_texts as f64);
+
+    match result {
         Ok(embeddings) => {
             let mut arrays: Vec<FloatArray> = embeddings
                 .into_iter()
@@ -260,17 +280,27 @@ pub extern "C" fn fastembed_sparse_text_embedding_new(
     };
 
     // Configure with CoreML execution provider for macOS GPU acceleration
+    // Enable profiling to track which operators run on GPU/ANE vs CPU
+    let coreml_config = CoreMLExecutionProvider::default()
+        .with_compute_units(CoreMLComputeUnits::All)
+        .with_model_format(CoreMLModelFormat::MLProgram)
+        .with_static_input_shapes(true)
+        .with_profile_compute_plan(true);
+    
+    match coreml_config.is_available() {
+        Ok(true) => eprintln!("[FASTEMBED-RUST] CoreML execution provider is available and will be used"),
+        Ok(false) => eprintln!("[FASTEMBED-RUST] CoreML execution provider is NOT available, falling back to CPU"),
+        Err(e) => eprintln!("[FASTEMBED-RUST] Failed to check CoreML availability: {}", e),
+    }
+    
     let init_options = SparseInitOptions::new(model)
-        .with_execution_providers(vec![
-            CoreMLExecutionProvider::default()
-                .with_compute_units(CoreMLComputeUnits::All)
-                .with_model_format(CoreMLModelFormat::MLProgram)
-                .with_static_input_shapes(true)
-                .build(),
-        ]);
+        .with_execution_providers(vec![coreml_config.build()]);
 
     match SparseTextEmbedding::try_new(init_options) {
-        Ok(embedding) => Box::into_raw(Box::new(SparseTextEmbeddingHandle(Box::new(embedding)))),
+        Ok(embedding) => {
+            eprintln!("[FASTEMBED-RUST] Sparse text embedding model initialized successfully");
+            Box::into_raw(Box::new(SparseTextEmbeddingHandle(Box::new(embedding))))
+        },
         Err(e) => {
             if !error.is_null() {
                 unsafe {
@@ -328,7 +358,15 @@ pub extern "C" fn fastembed_sparse_text_embedding_embed(
 
     let batch_size_opt = if batch_size > 0 { Some(batch_size) } else { None };
 
-    match handle.0.embed(text_vec, batch_size_opt) {
+    // Time the sparse embedding operation
+    let start = Instant::now();
+    let result = handle.0.embed(text_vec, batch_size_opt);
+    let duration = start.elapsed();
+    
+    eprintln!("[FASTEMBED-RUST] Sparse embedding: {} texts in {:.3}s ({:.2}ms/text)", 
+              num_texts, duration.as_secs_f64(), duration.as_millis() as f64 / num_texts as f64);
+
+    match result {
         Ok(embeddings) => {
             let mut sparse_embs: Vec<SparseEmbeddingC> = embeddings
                 .into_iter()
@@ -547,17 +585,27 @@ pub extern "C" fn fastembed_text_rerank_new(
     };
 
     // Configure with CoreML execution provider for macOS GPU acceleration
+    // Enable profiling to track which operators run on GPU/ANE vs CPU
+    let coreml_config = CoreMLExecutionProvider::default()
+        .with_compute_units(CoreMLComputeUnits::All)
+        .with_model_format(CoreMLModelFormat::MLProgram)
+        .with_static_input_shapes(true)
+        .with_profile_compute_plan(true);
+    
+    match coreml_config.is_available() {
+        Ok(true) => eprintln!("[FASTEMBED-RUST] CoreML execution provider is available and will be used"),
+        Ok(false) => eprintln!("[FASTEMBED-RUST] CoreML execution provider is NOT available, falling back to CPU"),
+        Err(e) => eprintln!("[FASTEMBED-RUST] Failed to check CoreML availability: {}", e),
+    }
+    
     let init_options = RerankInitOptions::new(model)
-        .with_execution_providers(vec![
-            CoreMLExecutionProvider::default()
-                .with_compute_units(CoreMLComputeUnits::All)
-                .with_model_format(CoreMLModelFormat::MLProgram)
-                .with_static_input_shapes(true)
-                .build(),
-        ]);
+        .with_execution_providers(vec![coreml_config.build()]);
 
     match TextRerank::try_new(init_options) {
-        Ok(reranker) => Box::into_raw(Box::new(TextRerankHandle(Box::new(reranker)))),
+        Ok(reranker) => {
+            eprintln!("[FASTEMBED-RUST] Text reranker model initialized successfully");
+            Box::into_raw(Box::new(TextRerankHandle(Box::new(reranker))))
+        },
         Err(e) => {
             if !error.is_null() {
                 unsafe {
@@ -631,7 +679,15 @@ pub extern "C" fn fastembed_text_rerank_rerank(
     // Convert Vec<String> to Vec<&str> for the rerank call
     let doc_vec: Vec<&str> = doc_strings.iter().map(|s| s.as_str()).collect();
 
-    match handle.0.rerank(query_str, doc_vec, return_documents, batch_size_opt) {
+    // Time the reranking operation
+    let start = Instant::now();
+    let result = handle.0.rerank(query_str, doc_vec, return_documents, batch_size_opt);
+    let duration = start.elapsed();
+    
+    eprintln!("[FASTEMBED-RUST] Reranking: {} documents in {:.3}s ({:.2}ms/doc)", 
+              num_documents, duration.as_secs_f64(), duration.as_millis() as f64 / num_documents as f64);
+
+    match result {
         Ok(results) => {
             let mut c_results: Vec<RerankResultC> = results
                 .into_iter()
