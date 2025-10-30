@@ -2,33 +2,25 @@
 
 ## Current Implementation
 
-This library **attempts to use CoreML with Apple Neural Engine (ANE)** for hardware acceleration on macOS, but in practice, **performance is worse than CPU-only execution**.
+This library **includes CoreML execution provider** configured to use all available compute units (CPU + GPU + ANE), but **CPU-only execution is 6-7x faster**.
+
+## Performance Comparison (Batch of 100)
+
+| Configuration | Text Embedding | Sparse Embedding | Reranking | vs CPU-only |
+|--------------|----------------|------------------|-----------|-------------|
+| **CPU-only** | 9.5ms/text | 41ms/text | 56ms/doc | **Baseline** |
+| **CoreML ANE-only** | 52ms/text | 126ms/text | 294ms/doc | 5.4x slower |
+| **CoreML All (CPU+GPU+ANE)** | 63ms/text | 179ms/text | 382ms/doc | **6.6x slower** |
 
 ## CoreML Configuration
 
-We configure CoreML with ANE-specific optimizations:
+Currently configured with:
 
-- `CPUAndNeuralEngine` compute units (avoiding slow CoreML GPU)
+- `CoreMLComputeUnits::All` - Allows use of CPU, GPU, and ANE
 - `MLProgram` model format for better operator support
 - `FastPrediction` specialization strategy
 - Subgraph support enabled
 - Compute plan profiling enabled
-
-## Performance Reality
-
-Despite CoreML being available and configured, **it provides negative performance** for these models:
-
-### CPU-Only Performance (ort without CoreML)
-
-- Text Embedding: ~9-12ms/text (batch of 100)
-- Sparse Embedding: ~40-47ms/text (batch of 100)
-- Reranking: ~56-67ms/doc (batch of 99)
-
-### With CoreML ANE Enabled
-
-- Text Embedding: ~52ms/text (batch of 100) - **5.4x SLOWER**
-- Sparse Embedding: ~126ms/text (batch of 100) - **3x SLOWER**
-- Reranking: ~294ms/doc (batch of 99) - **5.2x SLOWER**
 
 ## Why CoreML Makes Things Worse
 

@@ -115,18 +115,17 @@ pub extern "C" fn fastembed_text_embedding_new(
         _ => EmbeddingModel::BGESmallENV15, // default
     };
 
-    // Configure CoreML to use only the Apple Neural Engine (ANE)
-    // This avoids the slow CoreML CPU fallback and targets the specialized ML hardware
+    // Configure CoreML to use ALL compute units (CPU + GPU + ANE)
     let coreml_config = CoreMLExecutionProvider::default()
-        .with_compute_units(CoreMLComputeUnits::CPUAndNeuralEngine) // Use ANE + CPU, avoiding GPU
+        .with_compute_units(CoreMLComputeUnits::All) // Use all available hardware: CPU, GPU, ANE
         .with_model_format(CoreMLModelFormat::MLProgram) // MLProgram format for better operator support
         .with_specialization_strategy(CoreMLSpecializationStrategy::FastPrediction) // Optimize for inference speed
         .with_subgraphs(true) // Enable CoreML on control flow subgraphs
-        .with_profile_compute_plan(true); // Enable profiling to see ANE vs CPU dispatch
+        .with_profile_compute_plan(true); // Enable profiling to see hardware dispatch
     
     // Log CoreML availability
     match coreml_config.is_available() {
-        Ok(true) => eprintln!("[FASTEMBED-RUST] CoreML (ANE) execution provider is available"),
+        Ok(true) => eprintln!("[FASTEMBED-RUST] CoreML (All units: CPU+GPU+ANE) execution provider is available"),
         Ok(false) => eprintln!("[FASTEMBED-RUST] CoreML execution provider is NOT available, using CPU"),
         Err(e) => eprintln!("[FASTEMBED-RUST] Failed to check CoreML availability: {}", e),
     }
@@ -281,16 +280,16 @@ pub extern "C" fn fastembed_sparse_text_embedding_new(
         }
     };
 
-    // Configure CoreML to use only the Apple Neural Engine (ANE)
+    // Configure CoreML to use ALL compute units (CPU + GPU + ANE) 
     let coreml_config = CoreMLExecutionProvider::default()
-        .with_compute_units(CoreMLComputeUnits::CPUAndNeuralEngine)
+        .with_compute_units(CoreMLComputeUnits::All)
         .with_model_format(CoreMLModelFormat::MLProgram)
         .with_specialization_strategy(CoreMLSpecializationStrategy::FastPrediction)
         .with_subgraphs(true)
         .with_profile_compute_plan(true);
     
     match coreml_config.is_available() {
-        Ok(true) => eprintln!("[FASTEMBED-RUST] CoreML (ANE) execution provider is available"),
+        Ok(true) => eprintln!("[FASTEMBED-RUST] CoreML (All units: CPU+GPU+ANE) execution provider is available"),
         Ok(false) => eprintln!("[FASTEMBED-RUST] CoreML execution provider is NOT available, using CPU"),
         Err(e) => eprintln!("[FASTEMBED-RUST] Failed to check CoreML availability: {}", e),
     }
@@ -586,16 +585,16 @@ pub extern "C" fn fastembed_text_rerank_new(
         }
     };
 
-    // Configure CoreML to use only the Apple Neural Engine (ANE)
+    // Configure CoreML to use ALL compute units (CPU + GPU + ANE)
     let coreml_config = CoreMLExecutionProvider::default()
-        .with_compute_units(CoreMLComputeUnits::CPUAndNeuralEngine)
+        .with_compute_units(CoreMLComputeUnits::All)
         .with_model_format(CoreMLModelFormat::MLProgram)
         .with_specialization_strategy(CoreMLSpecializationStrategy::FastPrediction)
         .with_subgraphs(true)
         .with_profile_compute_plan(true);
     
     match coreml_config.is_available() {
-        Ok(true) => eprintln!("[FASTEMBED-RUST] CoreML (ANE) execution provider is available"),
+        Ok(true) => eprintln!("[FASTEMBED-RUST] CoreML (All units: CPU+GPU+ANE) execution provider is available"),
         Ok(false) => eprintln!("[FASTEMBED-RUST] CoreML execution provider is NOT available, using CPU"),
         Err(e) => eprintln!("[FASTEMBED-RUST] Failed to check CoreML availability: {}", e),
     }
