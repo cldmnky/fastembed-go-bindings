@@ -3,10 +3,6 @@ use fastembed::{
     RerankInitOptions, RerankerModel, SparseInitOptions, SparseModel, SparseTextEmbedding,
     TextEmbedding, TextRerank,
 };
-use ort::execution_providers::{
-    CoreMLExecutionProvider, ExecutionProvider,
-    coreml::{CoreMLComputeUnits, CoreMLModelFormat, CoreMLSpecializationStrategy},
-};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::ptr;
@@ -115,28 +111,11 @@ pub extern "C" fn fastembed_text_embedding_new(
         _ => EmbeddingModel::BGESmallENV15, // default
     };
 
-    // Configure CoreML to use ALL compute units (CPU + GPU + ANE)
-    let coreml_config = CoreMLExecutionProvider::default()
-        .with_compute_units(CoreMLComputeUnits::All) // Use all available hardware: CPU, GPU, ANE
-        .with_model_format(CoreMLModelFormat::MLProgram) // MLProgram format for better operator support
-        .with_specialization_strategy(CoreMLSpecializationStrategy::FastPrediction) // Optimize for inference speed
-        .with_subgraphs(true) // Enable CoreML on control flow subgraphs
-        .with_profile_compute_plan(true); // Enable profiling to see hardware dispatch
-    
-    // Log CoreML availability
-    match coreml_config.is_available() {
-        Ok(true) => eprintln!("[FASTEMBED-RUST] CoreML (All units: CPU+GPU+ANE) execution provider is available"),
-        Ok(false) => eprintln!("[FASTEMBED-RUST] CoreML execution provider is NOT available, using CPU"),
-        Err(e) => eprintln!("[FASTEMBED-RUST] Failed to check CoreML availability: {}", e),
-    }
-    
-    let init_options = InitOptions::new(model)
-        .with_execution_providers(vec![coreml_config.build()]);
+    let init_options = InitOptions::new(model);
 
     match TextEmbedding::try_new(init_options) {
         Ok(embedding) => {
-            eprintln!("[FASTEMBED-RUST] Text embedding model initialized");
-            eprintln!("[FASTEMBED-RUST] Note: CoreML may fall back to CPU for unsupported operators");
+            eprintln!("[FASTEMBED-RUST] Text embedding model initialized (CPU)");
             Box::into_raw(Box::new(TextEmbeddingHandle(Box::new(embedding))))
         },
         Err(e) => {
@@ -280,26 +259,11 @@ pub extern "C" fn fastembed_sparse_text_embedding_new(
         }
     };
 
-    // Configure CoreML to use ALL compute units (CPU + GPU + ANE) 
-    let coreml_config = CoreMLExecutionProvider::default()
-        .with_compute_units(CoreMLComputeUnits::All)
-        .with_model_format(CoreMLModelFormat::MLProgram)
-        .with_specialization_strategy(CoreMLSpecializationStrategy::FastPrediction)
-        .with_subgraphs(true)
-        .with_profile_compute_plan(true);
-    
-    match coreml_config.is_available() {
-        Ok(true) => eprintln!("[FASTEMBED-RUST] CoreML (All units: CPU+GPU+ANE) execution provider is available"),
-        Ok(false) => eprintln!("[FASTEMBED-RUST] CoreML execution provider is NOT available, using CPU"),
-        Err(e) => eprintln!("[FASTEMBED-RUST] Failed to check CoreML availability: {}", e),
-    }
-    
-    let init_options = SparseInitOptions::new(model)
-        .with_execution_providers(vec![coreml_config.build()]);
+    let init_options = SparseInitOptions::new(model);
 
     match SparseTextEmbedding::try_new(init_options) {
         Ok(embedding) => {
-            eprintln!("[FASTEMBED-RUST] Sparse text embedding model initialized");
+            eprintln!("[FASTEMBED-RUST] Sparse text embedding model initialized (CPU)");
             Box::into_raw(Box::new(SparseTextEmbeddingHandle(Box::new(embedding))))
         },
         Err(e) => {
@@ -585,26 +549,11 @@ pub extern "C" fn fastembed_text_rerank_new(
         }
     };
 
-    // Configure CoreML to use ALL compute units (CPU + GPU + ANE)
-    let coreml_config = CoreMLExecutionProvider::default()
-        .with_compute_units(CoreMLComputeUnits::All)
-        .with_model_format(CoreMLModelFormat::MLProgram)
-        .with_specialization_strategy(CoreMLSpecializationStrategy::FastPrediction)
-        .with_subgraphs(true)
-        .with_profile_compute_plan(true);
-    
-    match coreml_config.is_available() {
-        Ok(true) => eprintln!("[FASTEMBED-RUST] CoreML (All units: CPU+GPU+ANE) execution provider is available"),
-        Ok(false) => eprintln!("[FASTEMBED-RUST] CoreML execution provider is NOT available, using CPU"),
-        Err(e) => eprintln!("[FASTEMBED-RUST] Failed to check CoreML availability: {}", e),
-    }
-    
-    let init_options = RerankInitOptions::new(model)
-        .with_execution_providers(vec![coreml_config.build()]);
+    let init_options = RerankInitOptions::new(model);
 
     match TextRerank::try_new(init_options) {
         Ok(reranker) => {
-            eprintln!("[FASTEMBED-RUST] Text reranker model initialized");
+            eprintln!("[FASTEMBED-RUST] Text reranker model initialized (CPU)");
             Box::into_raw(Box::new(TextRerankHandle(Box::new(reranker))))
         },
         Err(e) => {
