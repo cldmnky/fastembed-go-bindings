@@ -3,6 +3,10 @@ use fastembed::{
     RerankInitOptions, RerankerModel, SparseInitOptions, SparseModel, SparseTextEmbedding,
     TextEmbedding, TextRerank,
 };
+use ort::execution_providers::{
+    CoreMLExecutionProvider, ExecutionProvider,
+    coreml::{CoreMLComputeUnits, CoreMLModelFormat, CoreMLSpecializationStrategy},
+};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::ptr;
@@ -111,16 +115,29 @@ pub extern "C" fn fastembed_text_embedding_new(
         _ => EmbeddingModel::BGESmallENV15, // default
     };
 
-    // NOTE: CoreML execution provider has limited support for transformer models
-    // Most BERT-style operations will fall back to CPU even when CoreML is "available"
-    // See: https://github.com/microsoft/onnxruntime/issues/16934
-    // 
-    // For now, we'll use CPU-only execution which is well-optimized by ONNX Runtime
-    let init_options = InitOptions::new(model);
+    // Configure CoreML to use only the Apple Neural Engine (ANE)
+    // This avoids the slow CoreML CPU fallback and targets the specialized ML hardware
+    let coreml_config = CoreMLExecutionProvider::default()
+        .with_compute_units(CoreMLComputeUnits::CPUAndNeuralEngine) // Use ANE + CPU, avoiding GPU
+        .with_model_format(CoreMLModelFormat::MLProgram) // MLProgram format for better operator support
+        .with_specialization_strategy(CoreMLSpecializationStrategy::FastPrediction) // Optimize for inference speed
+        .with_subgraphs(true) // Enable CoreML on control flow subgraphs
+        .with_profile_compute_plan(true); // Enable profiling to see ANE vs CPU dispatch
+    
+    // Log CoreML availability
+    match coreml_config.is_available() {
+        Ok(true) => eprintln!("[FASTEMBED-RUST] CoreML (ANE) execution provider is available"),
+        Ok(false) => eprintln!("[FASTEMBED-RUST] CoreML execution provider is NOT available, using CPU"),
+        Err(e) => eprintln!("[FASTEMBED-RUST] Failed to check CoreML availability: {}", e),
+    }
+    
+    let init_options = InitOptions::new(model)
+        .with_execution_providers(vec![coreml_config.build()]);
 
     match TextEmbedding::try_new(init_options) {
         Ok(embedding) => {
-            eprintln!("[FASTEMBED-RUST] Text embedding model initialized (CPU-optimized)");
+            eprintln!("[FASTEMBED-RUST] Text embedding model initialized");
+            eprintln!("[FASTEMBED-RUST] Note: CoreML may fall back to CPU for unsupported operators");
             Box::into_raw(Box::new(TextEmbeddingHandle(Box::new(embedding))))
         },
         Err(e) => {
@@ -264,12 +281,26 @@ pub extern "C" fn fastembed_sparse_text_embedding_new(
         }
     };
 
-    // NOTE: CoreML has limited support for transformer models - using CPU-only
-    let init_options = SparseInitOptions::new(model);
+    // Configure CoreML to use only the Apple Neural Engine (ANE)
+    let coreml_config = CoreMLExecutionProvider::default()
+        .with_compute_units(CoreMLComputeUnits::CPUAndNeuralEngine)
+        .with_model_format(CoreMLModelFormat::MLProgram)
+        .with_specialization_strategy(CoreMLSpecializationStrategy::FastPrediction)
+        .with_subgraphs(true)
+        .with_profile_compute_plan(true);
+    
+    match coreml_config.is_available() {
+        Ok(true) => eprintln!("[FASTEMBED-RUST] CoreML (ANE) execution provider is available"),
+        Ok(false) => eprintln!("[FASTEMBED-RUST] CoreML execution provider is NOT available, using CPU"),
+        Err(e) => eprintln!("[FASTEMBED-RUST] Failed to check CoreML availability: {}", e),
+    }
+    
+    let init_options = SparseInitOptions::new(model)
+        .with_execution_providers(vec![coreml_config.build()]);
 
     match SparseTextEmbedding::try_new(init_options) {
         Ok(embedding) => {
-            eprintln!("[FASTEMBED-RUST] Sparse text embedding model initialized (CPU-optimized)");
+            eprintln!("[FASTEMBED-RUST] Sparse text embedding model initialized");
             Box::into_raw(Box::new(SparseTextEmbeddingHandle(Box::new(embedding))))
         },
         Err(e) => {
@@ -555,12 +586,26 @@ pub extern "C" fn fastembed_text_rerank_new(
         }
     };
 
-    // NOTE: CoreML has limited support for transformer models - using CPU-only
-    let init_options = RerankInitOptions::new(model);
+    // Configure CoreML to use only the Apple Neural Engine (ANE)
+    let coreml_config = CoreMLExecutionProvider::default()
+        .with_compute_units(CoreMLComputeUnits::CPUAndNeuralEngine)
+        .with_model_format(CoreMLModelFormat::MLProgram)
+        .with_specialization_strategy(CoreMLSpecializationStrategy::FastPrediction)
+        .with_subgraphs(true)
+        .with_profile_compute_plan(true);
+    
+    match coreml_config.is_available() {
+        Ok(true) => eprintln!("[FASTEMBED-RUST] CoreML (ANE) execution provider is available"),
+        Ok(false) => eprintln!("[FASTEMBED-RUST] CoreML execution provider is NOT available, using CPU"),
+        Err(e) => eprintln!("[FASTEMBED-RUST] Failed to check CoreML availability: {}", e),
+    }
+    
+    let init_options = RerankInitOptions::new(model)
+        .with_execution_providers(vec![coreml_config.build()]);
 
     match TextRerank::try_new(init_options) {
         Ok(reranker) => {
-            eprintln!("[FASTEMBED-RUST] Text reranker model initialized (CPU-optimized)");
+            eprintln!("[FASTEMBED-RUST] Text reranker model initialized");
             Box::into_raw(Box::new(TextRerankHandle(Box::new(reranker))))
         },
         Err(e) => {

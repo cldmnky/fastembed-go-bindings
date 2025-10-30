@@ -2,38 +2,71 @@
 
 ## Current Implementation
 
-This library uses **CPU-only inference** with ONNX Runtime, optimized for maximum performance on CPU.
+This library **attempts to use CoreML with Apple Neural Engine (ANE)** for hardware acceleration on macOS, but in practice, **performance is worse than CPU-only execution**.
 
-## Why No GPU Acceleration?
+## CoreML Configuration
 
-We initially attempted to add macOS GPU acceleration using CoreML execution provider, but discovered:
+We configure CoreML with ANE-specific optimizations:
 
-### CoreML Execution Provider Limitations
+- `CPUAndNeuralEngine` compute units (avoiding slow CoreML GPU)
+- `MLProgram` model format for better operator support
+- `FastPrediction` specialization strategy
+- Subgraph support enabled
+- Compute plan profiling enabled
 
-1. **Poor Transformer Support**: BERT-style transformer models (which FastEmbed uses) contain many ONNX operators that CoreML doesn't support
-2. **Silent Fallback**: Even when CoreML is "available", it silently falls back to CPU for unsupported operators
-3. **No Performance Gain**: In testing, CoreML showed 0% GPU utilization despite being configured
-4. **Known Issue**: See [ONNX Runtime Issue #16934](https://github.com/microsoft/onnxruntime/issues/16934)
+## Performance Reality
 
-### What We Tested
+Despite CoreML being available and configured, **it provides negative performance** for these models:
 
-- ✅ CoreML execution provider configuration
-- ✅ MLProgram model format
-- ✅ Static input shapes
-- ✅ Compute profiling enabled
-- ❌ Result: No GPU utilization, CPU fallback
+### CPU-Only Performance (ort without CoreML)
 
-## Current Performance
+- Text Embedding: ~9-12ms/text (batch of 100)
+- Sparse Embedding: ~40-47ms/text (batch of 100)
+- Reranking: ~56-67ms/doc (batch of 99)
 
-Even on CPU-only, the performance is respectable:
+### With CoreML ANE Enabled
 
-- **Text Embedding**: ~48-52ms/text (batch size 44-50)
-- **Sparse Embedding**: ~200-210ms/text (batch size 44-50)
-- **Total per document**: ~250ms (dense + sparse)
+- Text Embedding: ~52ms/text (batch of 100) - **5.4x SLOWER**
+- Sparse Embedding: ~126ms/text (batch of 100) - **3x SLOWER**
+- Reranking: ~294ms/doc (batch of 99) - **5.2x SLOWER**
 
-With larger batches (100 texts):
-- **Text Embedding**: ~9-12ms/text
-- **Sparse Embedding**: ~40-47ms/text
+## Why CoreML Makes Things Worse
+
+1. **Operator Compatibility**: Most BERT transformer operators aren't supported by CoreML/ANE
+2. **Compilation Overhead**: CoreML adds model compilation and dispatch overhead  
+3. **CPU Fallback**: Unsupported operators fall back to CPU, but with added latency
+4. **Known Limitation**: See [ONNX Runtime Issue #16934](https://github.com/microsoft/onnxruntime/issues/16934)
+
+## Recommendation
+
+**Disable CoreML for production use** to get the best performance. The library includes CoreML support for experimental purposes, but CPU-only execution is 3-5x faster.
+
+To disable CoreML and use pure CPU:
+- Remove `coreml` from ort features in Cargo.toml
+- Remove CoreML configuration from model initialization
+
+## Alternatives for GPU Acceleration
+
+If you need GPU acceleration for transformer models on macOS, consider:
+
+### 1. **Apple MLX** (Recommended for macOS)
+
+- Native Metal support
+- Optimized for Apple Silicon
+- Good transformer support
+- Requires Python or Swift
+
+### 2. **PyTorch with MPS Backend**
+
+- Metal Performance Shaders support
+- Good transformer support
+- Requires Python
+
+### 3. **CUDA (on Linux/Windows)**
+
+- Use ONNX Runtime with CUDA EP
+- Best GPU support for transformers
+- Not available on macOS
 
 ## Alternatives for GPU Acceleration
 
