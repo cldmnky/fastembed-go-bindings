@@ -1,4 +1,4 @@
-.PHONY: all build clean test rust-build rust-clean go-build go-test go-clean help
+.PHONY: all build clean test rust-build rust-clean go-build go-test go-test-large go-clean help
 
 # Directories
 RUST_DIR := rust
@@ -75,6 +75,11 @@ go-build: rust-build
 go-test: rust-build
 	@echo "Running Go tests..."
 	@cd $(GO_PKG) && CGO_ENABLED=1 go test -v
+
+## go-test-large: Run large batch tests only
+go-test-large: rust-build
+	@echo "Running large batch tests..."
+	@cd $(GO_PKG) && CGO_ENABLED=1 go test -v -run "LargeBatch"
 
 ## go-clean: Clean Go build artifacts
 go-clean:

@@ -3,7 +3,10 @@ use fastembed::{
     RerankInitOptions, RerankerModel, SparseInitOptions, SparseModel, SparseTextEmbedding,
     TextEmbedding, TextRerank,
 };
-use ort::execution_providers::CoreMLExecutionProvider;
+use ort::execution_providers::{
+    CoreMLExecutionProvider,
+    coreml::{CoreMLComputeUnits, CoreMLModelFormat},
+};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::ptr;
@@ -114,7 +117,11 @@ pub extern "C" fn fastembed_text_embedding_new(
     // Configure with CoreML execution provider for macOS GPU acceleration
     let init_options = InitOptions::new(model)
         .with_execution_providers(vec![
-            CoreMLExecutionProvider::default().build(),
+            CoreMLExecutionProvider::default()
+                .with_compute_units(CoreMLComputeUnits::All)
+                .with_model_format(CoreMLModelFormat::MLProgram)
+                .with_static_input_shapes(true)
+                .build(),
         ]);
 
     match TextEmbedding::try_new(init_options) {
@@ -255,7 +262,11 @@ pub extern "C" fn fastembed_sparse_text_embedding_new(
     // Configure with CoreML execution provider for macOS GPU acceleration
     let init_options = SparseInitOptions::new(model)
         .with_execution_providers(vec![
-            CoreMLExecutionProvider::default().build(),
+            CoreMLExecutionProvider::default()
+                .with_compute_units(CoreMLComputeUnits::All)
+                .with_model_format(CoreMLModelFormat::MLProgram)
+                .with_static_input_shapes(true)
+                .build(),
         ]);
 
     match SparseTextEmbedding::try_new(init_options) {
@@ -538,7 +549,11 @@ pub extern "C" fn fastembed_text_rerank_new(
     // Configure with CoreML execution provider for macOS GPU acceleration
     let init_options = RerankInitOptions::new(model)
         .with_execution_providers(vec![
-            CoreMLExecutionProvider::default().build(),
+            CoreMLExecutionProvider::default()
+                .with_compute_units(CoreMLComputeUnits::All)
+                .with_model_format(CoreMLModelFormat::MLProgram)
+                .with_static_input_shapes(true)
+                .build(),
         ]);
 
     match TextRerank::try_new(init_options) {
