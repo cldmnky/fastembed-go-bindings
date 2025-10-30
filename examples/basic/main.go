@@ -58,7 +58,7 @@ func sparseEmbeddingExample() {
 	fmt.Println("2. Sparse Text Embeddings Example")
 	fmt.Println("----------------------------------")
 
-	model, err := fastembed.NewSparseTextEmbedding()
+	model, err := fastembed.NewSparseTextEmbedding("BGESmallENV15")
 	if err != nil {
 		log.Printf("Failed to create sparse text embedding model: %v\n", err)
 		return
@@ -91,7 +91,7 @@ func rerankExample() {
 	fmt.Println("3. Text Reranking Example")
 	fmt.Println("-------------------------")
 
-	model, err := fastembed.NewTextRerank()
+	model, err := fastembed.NewTextRerank("BGERerankerBase")
 	if err != nil {
 		log.Printf("Failed to create text rerank model: %v\n", err)
 		return

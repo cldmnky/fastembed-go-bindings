@@ -44,6 +44,105 @@ This will:
 - Copy the compiled library to the `build/` directory
 - Build the Go package
 
+## Using as a Dependency
+
+Since this library uses CGo and requires a compiled Rust library, there are a few ways to use it in your Go projects:
+
+### Option 1: Git Submodule (Recommended)
+
+1. Add this repository as a submodule to your project:
+```bash
+cd your-project
+git submodule add https://github.com/cldmnky/fastembed-go-bindings.git vendor/fastembed-go-bindings
+git submodule update --init --recursive
+```
+
+2. Build the library:
+```bash
+cd vendor/fastembed-go-bindings
+make build
+cd ../..
+```
+
+3. Add a replace directive to your `go.mod`:
+```go
+replace github.com/cldmnky/fastembed-go-bindings/fastembed => ./vendor/fastembed-go-bindings/fastembed
+```
+
+4. Import and use in your code:
+```go
+import "github.com/cldmnky/fastembed-go-bindings/fastembed"
+```
+
+5. Build your project with the library path:
+```bash
+export CGO_LDFLAGS="-L${PWD}/vendor/fastembed-go-bindings/build -lfastembed_c"
+export LD_LIBRARY_PATH="${PWD}/vendor/fastembed-go-bindings/build:$LD_LIBRARY_PATH"  # Linux
+# or
+export DYLD_LIBRARY_PATH="${PWD}/vendor/fastembed-go-bindings/build:$DYLD_LIBRARY_PATH"  # macOS
+go build
+```
+
+### Option 2: System-wide Installation
+
+1. Clone and build the library:
+```bash
+git clone https://github.com/cldmnky/fastembed-go-bindings.git
+cd fastembed-go-bindings
+make build
+```
+
+2. Install the library system-wide:
+```bash
+# macOS
+sudo cp build/libfastembed_c.dylib /usr/local/lib/
+sudo cp include/fastembed.h /usr/local/include/
+
+# Linux
+sudo cp build/libfastembed_c.so /usr/local/lib/
+sudo cp include/fastembed.h /usr/local/include/
+sudo ldconfig  # Update library cache
+```
+
+3. In your project, just use:
+```bash
+go get github.com/cldmnky/fastembed-go-bindings/fastembed
+```
+
+### Option 3: Manual Path Configuration
+
+1. Clone and build the library somewhere on your system
+2. Set environment variables when building your project:
+```bash
+export CGO_CFLAGS="-I/path/to/fastembed-go-bindings/include"
+export CGO_LDFLAGS="-L/path/to/fastembed-go-bindings/build -lfastembed_c"
+export LD_LIBRARY_PATH="/path/to/fastembed-go-bindings/build:$LD_LIBRARY_PATH"  # Linux
+# or
+export DYLD_LIBRARY_PATH="/path/to/fastembed-go-bindings/build:$DYLD_LIBRARY_PATH"  # macOS
+go build
+```
+
+### Runtime Considerations
+
+At runtime, your application needs to find the shared library:
+
+**Linux:**
+```bash
+export LD_LIBRARY_PATH="/path/to/fastembed-go-bindings/build:$LD_LIBRARY_PATH"
+./your-app
+```
+
+**macOS:**
+```bash
+export DYLD_LIBRARY_PATH="/path/to/fastembed-go-bindings/build:$DYLD_LIBRARY_PATH"
+./your-app
+```
+
+**Or use absolute RPATH during build:**
+```bash
+go build -ldflags="-r /path/to/fastembed-go-bindings/build"
+```
+
 ## Usage
 
 ### Text Embeddings
