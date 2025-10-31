@@ -9,6 +9,20 @@ use std::ptr;
 use std::slice;
 use std::time::Instant;
 
+// Helper function to check if debug logging is enabled
+fn is_debug_enabled() -> bool {
+    std::env::var("DEBUG").map(|v| v.to_lowercase() == "true").unwrap_or(false)
+}
+
+// Macro for conditional debug logging
+macro_rules! debug_log {
+    ($($arg:tt)*) => {
+        if is_debug_enabled() {
+            eprintln!($($arg)*);
+        }
+    };
+}
+
 // Opaque handles for the models
 pub struct TextEmbeddingHandle(Box<TextEmbedding>);
 pub struct SparseTextEmbeddingHandle(Box<SparseTextEmbedding>);
@@ -115,7 +129,7 @@ pub extern "C" fn fastembed_text_embedding_new(
 
     match TextEmbedding::try_new(init_options) {
         Ok(embedding) => {
-            eprintln!("[FASTEMBED-RUST] Text embedding model initialized (CPU)");
+            debug_log!("[FASTEMBED-RUST] Text embedding model initialized (CPU)");
             Box::into_raw(Box::new(TextEmbeddingHandle(Box::new(embedding))))
         },
         Err(e) => {
@@ -180,7 +194,7 @@ pub extern "C" fn fastembed_text_embedding_embed(
     let result = handle.0.embed(text_vec, batch_size_opt);
     let duration = start.elapsed();
     
-    eprintln!("[FASTEMBED-RUST] Text embedding: {} texts in {:.3}s ({:.2}ms/text)", 
+    debug_log!("[FASTEMBED-RUST] Text embedding: {} texts in {:.3}s ({:.2}ms/text)", 
               num_texts, duration.as_secs_f64(), duration.as_millis() as f64 / num_texts as f64);
 
     match result {
@@ -263,7 +277,7 @@ pub extern "C" fn fastembed_sparse_text_embedding_new(
 
     match SparseTextEmbedding::try_new(init_options) {
         Ok(embedding) => {
-            eprintln!("[FASTEMBED-RUST] Sparse text embedding model initialized (CPU)");
+            debug_log!("[FASTEMBED-RUST] Sparse text embedding model initialized (CPU)");
             Box::into_raw(Box::new(SparseTextEmbeddingHandle(Box::new(embedding))))
         },
         Err(e) => {
@@ -328,7 +342,7 @@ pub extern "C" fn fastembed_sparse_text_embedding_embed(
     let result = handle.0.embed(text_vec, batch_size_opt);
     let duration = start.elapsed();
     
-    eprintln!("[FASTEMBED-RUST] Sparse embedding: {} texts in {:.3}s ({:.2}ms/text)", 
+    debug_log!("[FASTEMBED-RUST] Sparse embedding: {} texts in {:.3}s ({:.2}ms/text)", 
               num_texts, duration.as_secs_f64(), duration.as_millis() as f64 / num_texts as f64);
 
     match result {
@@ -553,7 +567,7 @@ pub extern "C" fn fastembed_text_rerank_new(
 
     match TextRerank::try_new(init_options) {
         Ok(reranker) => {
-            eprintln!("[FASTEMBED-RUST] Text reranker model initialized (CPU)");
+            debug_log!("[FASTEMBED-RUST] Text reranker model initialized (CPU)");
             Box::into_raw(Box::new(TextRerankHandle(Box::new(reranker))))
         },
         Err(e) => {
@@ -634,7 +648,7 @@ pub extern "C" fn fastembed_text_rerank_rerank(
     let result = handle.0.rerank(query_str, doc_vec, return_documents, batch_size_opt);
     let duration = start.elapsed();
     
-    eprintln!("[FASTEMBED-RUST] Reranking: {} documents in {:.3}s ({:.2}ms/doc)", 
+    debug_log!("[FASTEMBED-RUST] Reranking: {} documents in {:.3}s ({:.2}ms/doc)", 
               num_documents, duration.as_secs_f64(), duration.as_millis() as f64 / num_documents as f64);
 
     match result {
